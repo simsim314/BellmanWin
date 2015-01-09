@@ -1,0 +1,5 @@
+to compile bellman:
+bellman.c bitwise.h evolve_bitwise.c evolve_simple.c lib.c lib.h readfile.c readwrite.h textconv.c universe.c universe.h writefile.c
+
+to compile mkstill:
+evolve_bitwise.c evolve_simple.c findstill.c lib.c lib.h mkstill.c readfile.c readwrite.h textconv.c universe.c universe.h writefile.c
