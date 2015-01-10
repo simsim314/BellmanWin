@@ -950,6 +950,12 @@ int main(int argc, char *argv[]) {
         fclose(f);
 
         max_gens = last_encounter_gen + repair_interval + stable_interval + 2;
+		
+		if(max_gens < (u_filter->n_gens + 1))
+		{
+			max_gens = u_filter->n_gens + 1;
+		}
+		
         n_live = 0;
 
         universe_evolve_next(u_static);
