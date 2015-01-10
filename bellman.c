@@ -10,6 +10,8 @@
 #define RECURSE(x) //printf x
 #define PRUNE(x) //printf x
 #define CHECK(x) //printf x
+#define YES 1
+#define NO 0
 
 static universe *u_static, *u_evolving, *u_forbidden, *u_filter;
 
@@ -549,7 +551,8 @@ static void bellman_recurse(universe *u, generation *g) {
         evolve_result all_gens = 0;
         int first_active_gen = 0;
         int changed = 0;
-
+		int stabilized = NO; 
+		
         for(ge = u->first; ge && ge->next; ge = ge->next) {
                 if(ge->flags & CHANGED) {
                         changed = 1;
@@ -564,7 +567,16 @@ static void bellman_recurse(universe *u, generation *g) {
 
                 if((first_active_gen == 0) && (ge->flags & DIFFERS_FROM_STABLE))
                         first_active_gen = ge->gen;
-
+				
+				if(first_active_gen > 0 && ge->n_active == 0)
+					stabilized = YES;
+				
+				if((stabilized == YES) && (ge->flags & DIFFERS_FROM_STABLE))
+                {
+					first_active_gen = ge->gen;
+					stabilized = NO;
+				}
+				
                 CHECK(("Checking generation %d, flags %x all %x first_active_gen %d n_active %d changed %d\n", 
                        ge->gen, ge->flags, all_gens, first_active_gen, ge->n_active, changed));
 
