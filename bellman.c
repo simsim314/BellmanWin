@@ -568,9 +568,12 @@ static void bellman_recurse(universe *u, generation *g) {
                 if((first_active_gen == 0) && (ge->flags & DIFFERS_FROM_STABLE))
                         first_active_gen = ge->gen;
 				
+				//stabilized flag is set to handle secondary destabilization.
 				if(first_active_gen > 0 && ge->n_active == 0)
 					stabilized = YES;
 				
+				//If stabilized and destabilized again, before reaching stable_interval,
+				//then first_active_gen will be set to the new active generation. 
 				if((stabilized == YES) && (ge->flags & DIFFERS_FROM_STABLE))
                 {
 					first_active_gen = ge->gen;
@@ -670,6 +673,25 @@ static void bellman_recurse(universe *u, generation *g) {
                 goto found;                                             \
         }
 
+static int validate_xy_for_symmetry(int x, int y)
+{
+	switch(symmetry_type) {
+	case NONE:
+		   return YES;
+	case HORIZ:
+			if(y >= symmetry_ofs - y)
+				return YES;
+			else
+				return NO;
+			
+	case VERT:
+			if(x >= symmetry_ofs - x)
+				return YES;
+			else
+				return NO;
+	}
+}
+
 static void bellman_choose_cells(universe *u, generation *g) {
         // Look for a tile with some unknown cells.
 
@@ -708,7 +730,8 @@ static void bellman_choose_cells(universe *u, generation *g) {
                 is_unk = t->bit1[y] & ~t->bit0[y];
                 if(is_unk) {
                         for(x = 0; x < TILE_WIDTH; x++) {
-                                if((is_unk >> x) & 1) {
+                                	
+								if((is_unk >> x) & 1) {
                                         assert(tile_get_cell(t, x, y) == UNKNOWN);
                                         // Now look for an unknown-stable cell near it.
                                         if((x == 0) || (x == TILE_WIDTH-1) || (y == 0) || (y == TILE_HEIGHT-1)) {
@@ -732,6 +755,7 @@ static void bellman_choose_cells(universe *u, generation *g) {
                 is_unk = t->bit1[y] & ~t->bit0[y];
                 if(is_unk) {
                         for(x = 0; x < TILE_WIDTH; x++) {
+								
                                 if((is_unk >> x) & 1) {
                                         assert(tile_get_cell(t, x, y) == UNKNOWN);
                                         // Now look for an unknown-stable cell near it.
@@ -759,6 +783,7 @@ static void bellman_choose_cells(universe *u, generation *g) {
                 is_unk = t->bit1[y] & ~t->bit0[y];
                 if(is_unk) {
                         for(x = 0; x < TILE_WIDTH; x++) {
+								
                                 if((is_unk >> x) & 1) {
                                         assert(tile_get_cell(t, x, y) == UNKNOWN);
                                         // Now look for an unknown-stable cell near it.
@@ -788,7 +813,7 @@ found:
         assert(tile_get_cell(t, x, y) == UNKNOWN);
         assert(tile_get_cell(t->prev, x+dx, y+dy) == UNKNOWN_STABLE);
         assert(tile_get_cell((tile *)t->auxdata, x+dx, y+dy) == UNKNOWN_STABLE);
-
+		
         RECURSE(("Generation %d, unknown cell at (%d, %d, %d)\n",
                  g->gen, g->gen + 1, x+dx, y+dy));
         assert(dx <= 1);
@@ -796,71 +821,88 @@ found:
         x += dx;
         y += dy;
 
-        int xmirror, ymirror;
+        
+		if(validate_xy_for_symmetry(x, y) == YES)
+		{
+			int xmirror, ymirror;
+			
+			switch(symmetry_type) {
+			case NONE:
+					xmirror = x;
+					ymirror = y;
+					break;
 
-        switch(symmetry_type) {
-        case NONE:
-                xmirror = x;
-                ymirror = y;
-                break;
+			case HORIZ:
+					xmirror = x;
+					ymirror = symmetry_ofs - y;
+					break;
 
-        case HORIZ:
-                xmirror = x;
-                ymirror = symmetry_ofs - y;
-                break;
+			case VERT:
+					xmirror = symmetry_ofs - x;
+					ymirror = y;
+					break;
 
-        case VERT:
-                xmirror = symmetry_ofs - x;
-                ymirror = y;
-                break;
+			default: assert(0);
+			}
 
-        default: assert(0);
-        }
-
-        if(tile_get_cell(t->prev, xmirror, ymirror) != UNKNOWN_STABLE) {
-                fprintf(stderr, "Input region is asymmetric (%d,%d)=%d (%d,%d)=%d\n",
-                        x, y, tile_get_cell(t->prev, x, y),
-                        xmirror, ymirror, tile_get_cell(t->prev, xmirror, ymirror));
-                exit(-1);
-        }
+			if(tile_get_cell(t->prev, xmirror, ymirror) != UNKNOWN_STABLE) {
+					fprintf(stderr, "Input region is asymmetric (%d,%d)=%d (%d,%d)=%d\n",
+							x, y, tile_get_cell(t->prev, x, y),
+							xmirror, ymirror, tile_get_cell(t->prev, xmirror, ymirror));
+					exit(-1);
+			}
 
 #if 0
-        tile_set_cell(t->prev, x, y, OFF);
-        tile_set_cell(t->auxdata, x, y, OFF);
-        g->prev->flags |= CHANGED;
+			tile_set_cell(t->prev, x, y, OFF);
+			tile_set_cell(t->auxdata, x, y, OFF);
+			g->prev->flags |= CHANGED;
 
-        RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
-        bellman_recurse(u, g->prev);
+			RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
+			bellman_recurse(u, g->prev);
 #endif
-        if(n_live < max_live) {
-                tile_set_cell(t->prev, x, y, ON);
-                tile_set_cell((tile *)t->auxdata, x, y, ON);
-                tile_set_cell(t->prev, xmirror, ymirror, ON);
-                tile_set_cell((tile *)t->auxdata, xmirror, ymirror, ON);
-                g->prev->flags |= CHANGED;
-                RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
-                n_live++;
-                bellman_recurse(u, g->prev);
-                n_live--;
-        } else {
-                PRUNE(("Too many live cells\n"));
-                prune_too_many_live++;
-        }
+			int dn = 1;
+			
+			//Symmetry many times turn ON 2 cells
+			if(xmirror != x || ymirror != y)
+				dn++;
+			
+			if(n_live + dn <= max_live) {
+					tile_set_cell(t->prev, x, y, ON);
+					tile_set_cell((tile *)t->auxdata, x, y, ON);
+					tile_set_cell(t->prev, xmirror, ymirror, ON);
+					tile_set_cell((tile *)t->auxdata, xmirror, ymirror, ON);
+					g->prev->flags |= CHANGED;
+					RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
+						
+					n_live+=dn;
+						bellman_recurse(u, g->prev);
+					n_live-=dn;
+			} else { 
+					PRUNE(("Too many live cells\n"));
+					prune_too_many_live++;
+			}
 #if 1
-        tile_set_cell(t->prev, x, y, OFF);
-        tile_set_cell((tile *)t->auxdata, x, y, OFF);
-        tile_set_cell(t->prev, xmirror, ymirror, OFF);
-        tile_set_cell((tile *)t->auxdata, xmirror, ymirror, OFF);
-        g->prev->flags |= CHANGED;
+			tile_set_cell(t->prev, x, y, OFF);
+			tile_set_cell((tile *)t->auxdata, x, y, OFF);
+			tile_set_cell(t->prev, xmirror, ymirror, OFF);
+			tile_set_cell((tile *)t->auxdata, xmirror, ymirror, OFF);
+			g->prev->flags |= CHANGED;
 
-        RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
-        bellman_recurse(u, g->prev);
+			RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
+			
+			
+			bellman_recurse(u, g->prev);
 #endif
-        tile_set_cell(t->prev, x, y, UNKNOWN_STABLE);
-        tile_set_cell((tile *)t->auxdata, x, y, UNKNOWN_STABLE);
-        tile_set_cell(t->prev, xmirror, ymirror, UNKNOWN_STABLE);
-        tile_set_cell((tile *)t->auxdata, xmirror, ymirror, UNKNOWN_STABLE);
-        g->prev->flags |= CHANGED;
+		
+		
+			tile_set_cell(t->prev, x, y, UNKNOWN_STABLE);
+			tile_set_cell((tile *)t->auxdata, x, y, UNKNOWN_STABLE);
+			tile_set_cell(t->prev, xmirror, ymirror, UNKNOWN_STABLE);
+			tile_set_cell((tile *)t->auxdata, xmirror, ymirror, UNKNOWN_STABLE);
+			g->prev->flags |= CHANGED;
+			
+		}
+		
 }
 
 int main(int argc, char *argv[]) {
