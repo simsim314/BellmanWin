@@ -476,7 +476,8 @@ static void bellman_found_solution(const char *type, unsigned int gens) {
         char name[30];
 
         unsigned int i;
-
+		tile *t;
+		
         snprintf(name, sizeof name, "result%06d-%s.out", solcount, type);
         FILE *f = fopen(name, "w");
         if(f) {
