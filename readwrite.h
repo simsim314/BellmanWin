@@ -10,6 +10,3 @@ void write_life105(FILE *f, generation *g);
 void write_life105_text(FILE *f, generation *g);
 
 universe *read_text(const char *filename);
-
-void write_gif(universe *u, int gen, const char *filename);
-void write_animated_gif(universe *u, const char *filename);

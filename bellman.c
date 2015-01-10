@@ -457,20 +457,12 @@ static void dump(int full, unsigned int gen_nr) {
 
         printf("Dumping %d\n", dumpcount);
 
-        //snprintf(name, sizeof name, "%03da.gif", dumpcount);
-        //write_gif(u_static, 0, name);
-
         if(full) {
                 for(i=0; i<max_gens; i++) {
                         printf("   %03d: %s\n", i, 
                                flag2str(universe_find_generation(u_evolving, i, 0)->flags));
-                        //snprintf(name, sizeof name, "%03dde%03d.gif", dumpcount, i);
-                        //write_gif(u_evolving, i, name);
+                        
                 }
-        }
-        if(gen_nr != 0) {
-                //snprintf(name, sizeof name, "%03dge%03d.gif", dumpcount, gen_nr);
-                //write_gif(u_evolving, gen_nr, name);
         }
         dumpcount++;
 }
@@ -483,63 +475,7 @@ static void bellman_found_solution(const char *type, unsigned int gens) {
 
         char name[30];
 
-        universe *utmp = universe_new(OFF);
         unsigned int i;
-
-        tile *t;
-        for(t = u_static->first->all_first; t; t = t->all_next) {
-                tile *t2 = universe_find_tile(utmp, 0, t->xpos, t->ypos, 1);
-                memcpy(&t2->bit0, &t->bit0, sizeof t->bit0);
-                memcpy(&t2->bit1, &t->bit1, sizeof t->bit1);
-                tile_set_flags(t2);
-        }
-
-        snprintf(name, sizeof name, "result%06d-%s-partial.gif", solcount, type);
-        //write_gif(utmp, 0, name);
-
-        universe *ur = utmp;
-
-        if(ur) {
-                for(i=1; i<gens; i++)
-                        universe_evolve_next(ur);
-
-                generation *ge, *gt;
-                
-                for(ge = u_evolving->first, gt = ur->first;
-                    ge && gt && (ge->gen < gens);
-                    ge = ge->next, gt = gt->next) {
-                        for(t = ge->all_first; t; t = t->all_next) {
-                                tile *t2 = generation_find_tile(gt, t->xpos, t->ypos, 1);
-                                tile *ts = generation_find_tile(u_static->first, t->xpos, t->ypos, 0);
-                                // wherever we have an unknown cell, take the
-                                // value from the static universe instead
-
-                                // also see if any cells are live/unknown in this tile
-
-                                int y;
-                                TILE_WORD live = 0;
-                                for(y=0; y<TILE_HEIGHT; y++) {
-                                        TILE_WORD mask = t->bit1[y];
-                                        t2->bit0[y] = (t->bit0[y] & ~mask);
-                                        t2->bit1[y] = (t->bit1[y] & ~mask);
-                                        if(ts) {
-                                                t2->bit0[y] |= ts->bit0[y] & mask;
-                                                t2->bit1[y] |= ts->bit1[y] & mask;
-                                        }
-                                        live |= t2->bit0[y] | t2->bit1[y];
-                                }
-                                if(live == 0)
-                                        t2->flags |= IS_DEAD;
-                                tile_set_flags(t2);
-                        }
-                }
-
-                snprintf(name, sizeof name, "result%06d-%s-full.gif", solcount, type);
-                //bellman_evolve_generations(ur->first, max_gens);
-
-                //write_animated_gif(ur, name);
-                //write_animated_gif(u_evolving, name);
-        }
 
         snprintf(name, sizeof name, "result%06d-%s.out", solcount, type);
         FILE *f = fopen(name, "w");
@@ -579,8 +515,6 @@ static void bellman_found_solution(const char *type, unsigned int gens) {
 
                 fclose(f);
         } else perror(name);
-
-        universe_free(utmp);
 }
 
 static void bellman_choose_cells(universe *u, generation *g);

@@ -1,5 +1,5 @@
-#S max-active 12
-#S repair-interval 12
+#S max-active 6
+#S repair-interval 4
 #S stable-interval 2
 #S max-live 500
 #S last-encounter 10
