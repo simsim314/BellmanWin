@@ -128,6 +128,8 @@ def AddText(val, x, y):
 	   
 	g.putcells(newt, x, y)
 
+g.setrule("LifeBellman")
+
 def putcells(outfile, dxy):
 	dx, dy = dxy
 	tileCount = -1
