@@ -667,7 +667,7 @@ static void bellman_recurse(universe *u, generation *g) {
 }
 
 #define TRY(cdx, cdy)                                                   \
-        if(tile_get_cell(t->prev, x + cdx, y + cdy) == UNKNOWN_STABLE) { \
+        if(tile_get_cell(t->prev, x + cdx, y + cdy) == UNKNOWN_STABLE && validate_xy_for_symmetry(x + cdx, y + cdy) == YES) { \
                 dx = cdx;                                               \
                 dy = cdy;                                               \
                 goto found;                                             \
@@ -810,98 +810,95 @@ static void bellman_choose_cells(universe *u, generation *g) {
         return;
 
 found:
-        assert(tile_get_cell(t, x, y) == UNKNOWN);
-        assert(tile_get_cell(t->prev, x+dx, y+dy) == UNKNOWN_STABLE);
-        assert(tile_get_cell((tile *)t->auxdata, x+dx, y+dy) == UNKNOWN_STABLE);
+	assert(tile_get_cell(t, x, y) == UNKNOWN);
+	assert(tile_get_cell(t->prev, x+dx, y+dy) == UNKNOWN_STABLE);
+	assert(tile_get_cell((tile *)t->auxdata, x+dx, y+dy) == UNKNOWN_STABLE);
+	
+	RECURSE(("Generation %d, unknown cell at (%d, %d, %d)\n",
+			 g->gen, g->gen + 1, x+dx, y+dy));
+	assert(dx <= 1);
+	assert(dy <= 1);
+	x += dx;
+	y += dy;
+
+		int xmirror, ymirror;
 		
-        RECURSE(("Generation %d, unknown cell at (%d, %d, %d)\n",
-                 g->gen, g->gen + 1, x+dx, y+dy));
-        assert(dx <= 1);
-        assert(dy <= 1);
-        x += dx;
-        y += dy;
+		switch(symmetry_type) {
+		case NONE:
+				xmirror = x;
+				ymirror = y;
+				break;
 
-        
-		if(validate_xy_for_symmetry(x, y) == YES)
-		{
-			int xmirror, ymirror;
-			
-			switch(symmetry_type) {
-			case NONE:
-					xmirror = x;
-					ymirror = y;
-					break;
+		case HORIZ:
+				xmirror = x;
+				ymirror = symmetry_ofs - y;
+				break;
 
-			case HORIZ:
-					xmirror = x;
-					ymirror = symmetry_ofs - y;
-					break;
+		case VERT:
+				xmirror = symmetry_ofs - x;
+				ymirror = y;
+				break;
 
-			case VERT:
-					xmirror = symmetry_ofs - x;
-					ymirror = y;
-					break;
+		default: assert(0);
+		}
 
-			default: assert(0);
-			}
-
-			if(tile_get_cell(t->prev, xmirror, ymirror) != UNKNOWN_STABLE) {
-					fprintf(stderr, "Input region is asymmetric (%d,%d)=%d (%d,%d)=%d\n",
-							x, y, tile_get_cell(t->prev, x, y),
-							xmirror, ymirror, tile_get_cell(t->prev, xmirror, ymirror));
-					exit(-1);
-			}
+		if(tile_get_cell(t->prev, xmirror, ymirror) != UNKNOWN_STABLE) {
+				fprintf(stderr, "Input region is asymmetric (%d,%d)=%d (%d,%d)=%d\n",
+						x, y, tile_get_cell(t->prev, x, y),
+						xmirror, ymirror, tile_get_cell(t->prev, xmirror, ymirror));
+				exit(-1);
+		}
 
 #if 0
-			tile_set_cell(t->prev, x, y, OFF);
-			tile_set_cell(t->auxdata, x, y, OFF);
-			g->prev->flags |= CHANGED;
+		tile_set_cell(t->prev, x, y, OFF);
+		tile_set_cell(t->auxdata, x, y, OFF);
+		g->prev->flags |= CHANGED;
 
-			RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
-			bellman_recurse(u, g->prev);
+		RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
+		bellman_recurse(u, g->prev);
 #endif
-			int dn = 1;
-			
-			//Symmetry many times turn ON 2 cells
-			if(xmirror != x || ymirror != y)
-				dn++;
-			
-			if(n_live + dn <= max_live) {
-					tile_set_cell(t->prev, x, y, ON);
-					tile_set_cell((tile *)t->auxdata, x, y, ON);
-					tile_set_cell(t->prev, xmirror, ymirror, ON);
-					tile_set_cell((tile *)t->auxdata, xmirror, ymirror, ON);
-					g->prev->flags |= CHANGED;
-					RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
-						
-					n_live+=dn;
-						bellman_recurse(u, g->prev);
-					n_live-=dn;
-			} else { 
-					PRUNE(("Too many live cells\n"));
-					prune_too_many_live++;
-			}
-#if 1
-			tile_set_cell(t->prev, x, y, OFF);
-			tile_set_cell((tile *)t->auxdata, x, y, OFF);
-			tile_set_cell(t->prev, xmirror, ymirror, OFF);
-			tile_set_cell((tile *)t->auxdata, xmirror, ymirror, OFF);
-			g->prev->flags |= CHANGED;
-
-			RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
-			
-			
-			bellman_recurse(u, g->prev);
-#endif
+		int dn = 1;
 		
+		//Symmetry many times turn ON 2 cells
+		if(xmirror != x || ymirror != y)
+			dn++;
 		
-			tile_set_cell(t->prev, x, y, UNKNOWN_STABLE);
-			tile_set_cell((tile *)t->auxdata, x, y, UNKNOWN_STABLE);
-			tile_set_cell(t->prev, xmirror, ymirror, UNKNOWN_STABLE);
-			tile_set_cell((tile *)t->auxdata, xmirror, ymirror, UNKNOWN_STABLE);
-			g->prev->flags |= CHANGED;
-			
+		if(n_live + dn <= max_live) {
+				tile_set_cell(t->prev, x, y, ON);
+				tile_set_cell((tile *)t->auxdata, x, y, ON);
+				tile_set_cell(t->prev, xmirror, ymirror, ON);
+				tile_set_cell((tile *)t->auxdata, xmirror, ymirror, ON);
+				g->prev->flags |= CHANGED;
+				RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
+					
+				n_live+=dn;
+					bellman_recurse(u, g->prev);
+				n_live-=dn;
+		} else { 
+				PRUNE(("Too many live cells\n"));
+				prune_too_many_live++;
 		}
+#if 1
+		tile_set_cell(t->prev, x, y, OFF);
+		tile_set_cell((tile *)t->auxdata, x, y, OFF);
+		tile_set_cell(t->prev, xmirror, ymirror, OFF);
+		tile_set_cell((tile *)t->auxdata, xmirror, ymirror, OFF);
+		g->prev->flags |= CHANGED;
+
+		RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
+		
+		
+		bellman_recurse(u, g->prev);
+#endif
+	
+	
+		tile_set_cell(t->prev, x, y, UNKNOWN_STABLE);
+		tile_set_cell((tile *)t->auxdata, x, y, UNKNOWN_STABLE);
+		tile_set_cell(t->prev, xmirror, ymirror, UNKNOWN_STABLE);
+		tile_set_cell((tile *)t->auxdata, xmirror, ymirror, UNKNOWN_STABLE);
+		g->prev->flags |= CHANGED;
+		
+	
 		
 }
 
