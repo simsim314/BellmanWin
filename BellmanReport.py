@@ -105,6 +105,7 @@ def CreateRule():
 		f.write('\n')
 		f.write('@COLORS\n')
 		f.write('\n')
+		f.write('0    48  48    48\n')
 		f.write('1    255  255    255\n')
 		f.write('2    0    0  0\n')
 		f.write('3  0  191  225\n')
