@@ -128,7 +128,6 @@ def AddText(val, x, y):
 	   
 	g.putcells(newt, x, y)
 
-g.setrule("LifeBellman")
 
 def putcells(outfile, dxy):
 	dx, dy = dxy
@@ -237,6 +236,10 @@ def Place(path):
 		dx = 0
 	
 	AddText(path, 0, -100)
+
+#Start Here 
+CreateRule()
+g.setrule("LifeBellman")
 
 file_path = os.path.join(g.getdir("data"), "LastBellmanOutputDir.txt")
 dir = ""
