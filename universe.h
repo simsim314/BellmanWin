@@ -48,7 +48,8 @@ enum {
         DIFFERS_FROM_2PREV = 0x4000,
         IS_LIVE = 0x8000,
 
-        FILTER_MISMATCH = 0x10000
+        FILTER_MISMATCH = 0x10000,
+		HAS_ON_CELLS = 0x20000
 
 };
 

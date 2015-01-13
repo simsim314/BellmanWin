@@ -365,6 +365,7 @@ const char *flag2str(evolve_result flags) {
         FLAG(DIFFERS_FROM_2PREV);
         FLAG(IS_LIVE);
         FLAG(FILTER_MISMATCH);
+		FLAG(HAS_ON_CELLS);
 
         if(flags) {
                 p += sprintf(p, "%x?", flags);

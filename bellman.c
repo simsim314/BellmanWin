@@ -34,6 +34,7 @@ static unsigned int max_gens;
 static unsigned int n_live;
 
 static int last_print_time = 0;
+static int total_time = 0;
 
 // Prune counters
 static uint64_t prune_unstable;
@@ -223,6 +224,8 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 
         TILE_WORD interaction = 0, activity = 0, unk_succ = 0, delta_from_stable_count = 0;
         TILE_WORD delta_from_previous_count = 0;
+		TILE_WORD has_ON_cells = 0;
+		
         TILE_WORD forbid = 0;
         TILE_WORD activity2 = 0, live = 0;
         TILE_WORD filter_diff_all = 0;
@@ -360,7 +363,10 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 
                 // Look for unknown successors
                 unk_succ |= (out->bit1[y] & ~out->bit0[y]);
-
+				
+				//Update has on cells flag. 
+				has_ON_cells |= (~out->bit1[y] & out->bit0[y]);
+				
                 // Compare against user-specified filter pattern
                 TILE_WORD filter_bit0 = filter ? filter->bit0[y] : 0;
                 TILE_WORD filter_bit1 = filter ? filter->bit1[y] : (TILE_WORD)~0;
@@ -426,6 +432,7 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 
         if(interaction != 0) out->flags |= DIFFERS_FROM_STABLE;
         if(unk_succ != 0) out->flags |= HAS_UNKNOWN_CELLS;
+		if(has_ON_cells != 0) out->flags |= HAS_ON_CELLS;
         if(forbid != 0) out->flags |= IN_FORBIDDEN_REGION;
         if(activity != 0) out->flags |= DIFFERS_FROM_PREVIOUS;
         if((activity2 != 0) || !prev) out->flags |= DIFFERS_FROM_2PREV;
@@ -524,10 +531,14 @@ static void bellman_choose_cells(universe *u, generation *g);
 
 static void bellman_recurse(universe *u, generation *g) {
 
-        int t_now = time(NULL);
+		int t_now = time(NULL);
         if((t_now - last_print_time) > 10) {
-                last_print_time = t_now;
+		        last_print_time = t_now;
                 print_prune_counters();
+				total_time++;
+				
+				if(total_time % 6 == 0)
+					printf("Total time %d min \n", total_time / 6);
         }
 
         // First make sure the static pattern is truly static
@@ -605,6 +616,9 @@ static void bellman_recurse(universe *u, generation *g) {
                         }
                 }
                 
+				if(!(ge->flags & HAS_ON_CELLS) && (ge->flags & HAS_UNKNOWN_CELLS))
+					break;
+				
                 if(last_encounter_gen && (ge->gen >= last_encounter_gen)) {
                         if(!(all_gens & DIFFERS_FROM_STABLE) && !(ge->flags & HAS_UNKNOWN_CELLS)) {
                                 PRUNE(("No activity before generation %d\n", last_encounter_gen));

@@ -1,5 +1,5 @@
 #S max-active 5
-#S repair-interval 60
+#S repair-interval 4
 #S stable-interval 15
 #S max-live 200
 #S last-encounter 15
@@ -21,4 +21,5 @@
 ..............
 ..............
 ..............
-
+#F 80 0 0
+.
