@@ -240,6 +240,7 @@ def Place(path):
 
 #Start Here 
 CreateRule()
+g.new("")
 g.setrule("LifeBellman")
 
 file_path = os.path.join(g.getdir("data"), "LastBellmanOutputDir.txt")
