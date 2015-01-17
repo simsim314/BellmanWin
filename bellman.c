@@ -527,6 +527,25 @@ static void bellman_found_solution(const char *type, unsigned int gens) {
         } else perror(name);
 }
 
+static int all_static_unknown(generation *ufirst, generation *ge)
+{
+	 tile *t, *tge;
+	 tge = ge->all_first;
+	 int y; 
+	for(t = ufirst->all_first; t; t = t->all_next) {
+		
+		for(y=0; y<TILE_HEIGHT; y++) {
+				
+			if((~tge->bit1[y] & t->bit1[y] & t->bit0[y]) != 0)
+				return NO;
+		}
+		
+		tge = tge->all_next;
+	}
+	
+	return YES;
+}
+
 static void bellman_choose_cells(universe *u, generation *g);
 
 static void bellman_recurse(universe *u, generation *g) {
@@ -563,6 +582,7 @@ static void bellman_recurse(universe *u, generation *g) {
         int first_active_gen = 0;
         int changed = 0;
 		int stabilized = NO; 
+		int stabilized_gen = -1; 
 		
         for(ge = u->first; ge && ge->next; ge = ge->next) {
                 if(ge->flags & CHANGED) {
@@ -580,8 +600,11 @@ static void bellman_recurse(universe *u, generation *g) {
                         first_active_gen = ge->gen;
 				
 				//stabilized flag is set to handle secondary destabilization.
-				if(first_active_gen > 0 && ge->n_active == 0)
+				if(first_active_gen > 0 && ge->n_active == 0 && stabilized == NO)
+				{
 					stabilized = YES;
+					stabilized_gen = ge->gen;
+				}
 				
 				//If stabilized and destabilized again, before reaching stable_interval,
 				//then first_active_gen will be set to the new active generation. 
@@ -619,6 +642,10 @@ static void bellman_recurse(universe *u, generation *g) {
 				if(!(ge->flags & HAS_ON_CELLS) && (ge->flags & HAS_UNKNOWN_CELLS))
 					break;
 				
+				if(stabilized == NO && all_static_unknown(u->first, ge) == YES && (ge->flags & HAS_UNKNOWN_CELLS))
+					break;
+				
+
                 if(last_encounter_gen && (ge->gen >= last_encounter_gen)) {
                         if(!(all_gens & DIFFERS_FROM_STABLE) && !(ge->flags & HAS_UNKNOWN_CELLS)) {
                                 PRUNE(("No activity before generation %d\n", last_encounter_gen));
@@ -638,7 +665,7 @@ static void bellman_recurse(universe *u, generation *g) {
                         }
                 }
 
-                if((first_active_gen > 0) && (ge->gen > first_active_gen + repair_interval + stable_interval) && (ge->gen >= (u_filter->n_gens - 1))) {
+                if((stabilized == YES) && (ge->gen >= stabilized_gen + stable_interval) && (ge->gen >= (u_filter->n_gens - 1))) {
                         // We reached the end of the stable interval;
                         // we may have a solution
 
