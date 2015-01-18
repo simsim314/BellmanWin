@@ -221,7 +221,8 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
         TILE_WORD dl_bit1, d_bit1, dr_bit1;
         TILE_WORD dl_bit0s, d_bit0s, dr_bit0s;
         TILE_WORD dl_bit1s, d_bit1s, dr_bit1s;
-
+		TILE_WORD all_non_active; 
+		
         TILE_WORD interaction = 0, activity = 0, unk_succ = 0, delta_from_stable_count = 0;
         TILE_WORD delta_from_previous_count = 0;
 		TILE_WORD has_ON_cells = 0;
@@ -252,7 +253,20 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
                         GET3WORDS(dl_bit0s, d_bit0s, dr_bit0s, stable, 0, y+1);
                         GET3WORDS(dl_bit1s, d_bit1s, dr_bit1s, stable, 1, y+1);
                 }
+				
+				//active is either 1 or unknown. (optimization)
+				
+				all_non_active |= (((ul_bit0) & (~ul_bit1)) | ((~ul_bit0) & (ul_bit1)));
+				all_non_active |= (((ul_bit0s) & (~ul_bit1s)) | ((~ul_bit0s) & (ul_bit1s)));
 
+				all_non_active |= (((ur_bit0) & (~ur_bit1)) | ((~ur_bit0) & (ur_bit1)));
+				all_non_active |= (((ur_bit0s) & (~ur_bit1s)) | ((~ur_bit0s) & (ur_bit1s)));
+				
+				all_non_active |= (((u_bit0) & (~u_bit1)) | ((~u_bit0) & (u_bit1)));
+				all_non_active |= (((u_bit0s) & (~u_bit1s)) | ((~u_bit0s) & (u_bit1s)));
+
+			if(all_non_active != 0)
+			{
                 // Any neighbourhood which is identical to the stable
                 // universe should remain stable.
 
@@ -402,19 +416,25 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 
                 }
 #endif
+			}
+			else
+			{
+				//if all activity is stable - remain the same (optimization)
+				out->bit0[y] = t->bit0[y];
+                out->bit1[y] = t->bit1[y];
+			}
+			// Shift the previous results
+			ul_bit0 = l_bit0; u_bit0 = bit0; ur_bit0 = r_bit0;
+			ul_bit1 = l_bit1; u_bit1 = bit1; ur_bit1 = r_bit1;
 
-                // Shift the previous results
-                ul_bit0 = l_bit0; u_bit0 = bit0; ur_bit0 = r_bit0;
-                ul_bit1 = l_bit1; u_bit1 = bit1; ur_bit1 = r_bit1;
+			l_bit0 = dl_bit0; bit0 = d_bit0; r_bit0 = dr_bit0;
+			l_bit1 = dl_bit1; bit1 = d_bit1; r_bit1 = dr_bit1;
 
-                l_bit0 = dl_bit0; bit0 = d_bit0; r_bit0 = dr_bit0;
-                l_bit1 = dl_bit1; bit1 = d_bit1; r_bit1 = dr_bit1;
+			ul_bit0s = l_bit0s; u_bit0s = bit0s; ur_bit0s = r_bit0s;
+			ul_bit1s = l_bit1s; u_bit1s = bit1s; ur_bit1s = r_bit1s;
 
-                ul_bit0s = l_bit0s; u_bit0s = bit0s; ur_bit0s = r_bit0s;
-                ul_bit1s = l_bit1s; u_bit1s = bit1s; ur_bit1s = r_bit1s;
-
-                l_bit0s = dl_bit0s; bit0s = d_bit0s; r_bit0s = dr_bit0s;
-                l_bit1s = dl_bit1s; bit1s = d_bit1s; r_bit1s = dr_bit1s;
+			l_bit0s = dl_bit0s; bit0s = d_bit0s; r_bit0s = dr_bit0s;
+			l_bit1s = dl_bit1s; bit1s = d_bit1s; r_bit1s = dr_bit1s;
 
         }
 
