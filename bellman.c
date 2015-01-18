@@ -753,6 +753,35 @@ static int validate_xy_for_symmetry(int x, int y)
 	}
 }
 
+static int xy_symmetry(int x, int y, int* mirrorx_arr, int* mirrory_arr)
+{
+	mirrorx_arr[0] = x;
+	mirrory_arr[0] = y;
+		
+	switch(symmetry_type) {
+		case NONE:
+			return 1;
+		case HORIZ:
+			if(y == symmetry_ofs - y)
+				return 1;
+			
+			mirrorx_arr[1] = x;
+			mirrory_arr[1] = symmetry_ofs - y;
+		
+			return 2;
+			
+		case VERT:
+			if(x == symmetry_ofs - x)
+				return 1;
+			
+			mirrorx_arr[1] =  symmetry_ofs - x;
+			mirrory_arr[1] = y;
+					
+			return 2;
+
+	}
+}
+
 static void bellman_choose_cells(universe *u, generation *g) {
         // Look for a tile with some unknown cells.
 
@@ -882,34 +911,19 @@ found:
 	x += dx;
 	y += dy;
 
-		int xmirror, ymirror;
-		
-		switch(symmetry_type) {
-		case NONE:
-				xmirror = x;
-				ymirror = y;
-				break;
+	int xmirror[8], ymirror[8], n_sym, i;
+	
+	n_sym = xy_symmetry(x, y, xmirror, ymirror);
 
-		case HORIZ:
-				xmirror = x;
-				ymirror = symmetry_ofs - y;
-				break;
-
-		case VERT:
-				xmirror = symmetry_ofs - x;
-				ymirror = y;
-				break;
-
-		default: assert(0);
-		}
-
-		if(tile_get_cell(t->prev, xmirror, ymirror) != UNKNOWN_STABLE) {
+	for(i = 0; i < n_sym; i++) {
+		if(tile_get_cell(t->prev, xmirror[i], ymirror[i]) != UNKNOWN_STABLE) {
 				fprintf(stderr, "Input region is asymmetric (%d,%d)=%d (%d,%d)=%d\n",
 						x, y, tile_get_cell(t->prev, x, y),
 						xmirror, ymirror, tile_get_cell(t->prev, xmirror, ymirror));
 				exit(-1);
 		}
-
+	}
+	
 #if 0
 		tile_set_cell(t->prev, x, y, OFF);
 		tile_set_cell(t->auxdata, x, y, OFF);
@@ -918,49 +932,41 @@ found:
 		RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
 		bellman_recurse(u, g->prev);
 #endif
-		int dn = 1;
 		
-		//Symmetry many times turn ON 2 cells
-		if(xmirror != x || ymirror != y)
-			dn++;
-		
-		if(n_live + dn <= max_live) {
-				tile_set_cell(t->prev, x, y, ON);
-				tile_set_cell((tile *)t->auxdata, x, y, ON);
-				tile_set_cell(t->prev, xmirror, ymirror, ON);
-				tile_set_cell((tile *)t->auxdata, xmirror, ymirror, ON);
-				g->prev->flags |= CHANGED;
-				RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
-					
-				n_live+=dn;
-					bellman_recurse(u, g->prev);
-				n_live-=dn;
+		if(n_live + n_sym <= max_live) {
+			for(i = 0; i < n_sym; i++){
+				tile_set_cell(t->prev,  xmirror[i], ymirror[i], ON);
+				tile_set_cell((tile *)t->auxdata,  xmirror[i], ymirror[i], ON);
+			}
+			
+			g->prev->flags |= CHANGED;
+			RECURSE(("Recursing with (%d,%d) = ON\n", x, y));
+				
+			n_live+=n_sym;
+				bellman_recurse(u, g->prev);
+			n_live-=n_sym;
 		} else { 
 				PRUNE(("Too many live cells\n"));
 				prune_too_many_live++;
 		}
 #if 1
-		tile_set_cell(t->prev, x, y, OFF);
-		tile_set_cell((tile *)t->auxdata, x, y, OFF);
-		tile_set_cell(t->prev, xmirror, ymirror, OFF);
-		tile_set_cell((tile *)t->auxdata, xmirror, ymirror, OFF);
+		for(i = 0; i < n_sym; i++){
+			tile_set_cell(t->prev,  xmirror[i], ymirror[i], OFF);
+			tile_set_cell((tile *)t->auxdata,  xmirror[i], ymirror[i], OFF);
+		}
+		
 		g->prev->flags |= CHANGED;
 
 		RECURSE(("Recursing with (%d,%d) = OFF\n", x, y));
-		
-		
 		bellman_recurse(u, g->prev);
 #endif
-	
-	
-		tile_set_cell(t->prev, x, y, UNKNOWN_STABLE);
-		tile_set_cell((tile *)t->auxdata, x, y, UNKNOWN_STABLE);
-		tile_set_cell(t->prev, xmirror, ymirror, UNKNOWN_STABLE);
-		tile_set_cell((tile *)t->auxdata, xmirror, ymirror, UNKNOWN_STABLE);
+		
+		for(i = 0; i < n_sym; i++){
+			tile_set_cell(t->prev,  xmirror[i], ymirror[i], UNKNOWN_STABLE);
+			tile_set_cell((tile *)t->auxdata,  xmirror[i], ymirror[i], UNKNOWN_STABLE);
+		}
+		
 		g->prev->flags |= CHANGED;
-		
-	
-		
 }
 
 int main(int argc, char *argv[]) {
