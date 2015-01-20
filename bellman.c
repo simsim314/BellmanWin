@@ -25,9 +25,13 @@ static unsigned int max_active = 10;
 
 // Symmetry constraints
 static enum {
-        NONE, HORIZ, VERT
+        NONE, HORIZ, VERT, DIAG, DIAG_INVERSE
 } symmetry_type = NONE;
+
 static unsigned int symmetry_ofs = 0;
+
+static unsigned int diagonal_x, diagonal_y;
+static unsigned int inverse_x, inverse_y;
 
 // Other global values
 static unsigned int max_gens;
@@ -112,7 +116,10 @@ static void read_cb(void *u_, char area, int gen, int x, int y, char c) {
 
 static void read_param_cb(void *u_, const char *param, const char *value) {
         (void)u_;
-
+		char typebuff[20];
+        unsigned int coord;
+        
+				
         if(!strcmp(param, "first-encounter"))
                 first_encounter_gen = strtoul(value, NULL, 10);
 
@@ -131,37 +138,52 @@ static void read_param_cb(void *u_, const char *param, const char *value) {
         else if(!strcmp(param, "max-active"))
                 max_active = strtoul(value, NULL, 10);
 
-        else if(!strcmp(param, "symmetry")) {
-                char typebuff[20];
-                unsigned int coord;
-                if(sscanf(value, "%d:%s", &coord, typebuff) != 2) {
-                        fprintf(stderr, "Bad symmetry parameter: '%s'\n", value);
+        else if(!strcmp(param, "symmetry-horiz-odd")) {
+                 coord = strtoul(value, NULL, 10);
+				 symmetry_type = HORIZ;
+                 symmetry_ofs = (coord * 2);
+
+				}
+        else if(!strcmp(param, "symmetry-horiz-even")) {
+                 coord = strtoul(value, NULL, 10);
+				 symmetry_type = HORIZ;
+                 symmetry_ofs = (coord * 2) + 1;
+				}       
+		else if(!strcmp(param, "symmetry-vert-odd")) {
+                 coord = strtoul(value, NULL, 10);
+				 symmetry_type = VERT;
+                 symmetry_ofs = (coord * 2);
+				}       
+				
+        else if(!strcmp(param, "symmetry-vert-even")) {
+                 coord = strtoul(value, NULL, 10);
+				 symmetry_type = VERT;
+                 symmetry_ofs = (coord * 2) + 1;
+             }
+		 else if(!strcmp(param, "symmetry-diag")) {
+				
+				if(sscanf(value, "%d %d", &diagonal_x, &diagonal_y) != 2) {
+                      fprintf(stderr, "Bad symmetry parameter: '%s'\n", value);
                         exit(-1);
-                }
+				}
+				
+				 symmetry_type = DIAG;
+             }		
 
-                if(!strcmp(typebuff, "horiz-odd")) {
-                        symmetry_type = HORIZ;
-                        symmetry_ofs = (coord * 2);
-
-                } else if(!strcmp(typebuff, "horiz-even")) {
-                        symmetry_type = HORIZ;
-                        symmetry_ofs = (coord * 2) + 1;
-
-                } else if(!strcmp(typebuff, "vert-odd")) {
-                        symmetry_type = VERT;
-                        symmetry_ofs = (coord * 2);
-
-                } else if(!strcmp(typebuff, "vert-even")) {
-                        symmetry_type = VERT;
-                        symmetry_ofs = (coord * 2) + 1;
-                }
-
-                        
-        }
+         else if(!strcmp(param, "symmetry-diag-inverse")) {
+				
+				if(sscanf(value, "%d %d", &inverse_x, &inverse_y) != 2) {
+                      fprintf(stderr, "Bad symmetry parameter: '%s'\n", value);
+                        exit(-1);
+				}
+				
+				 symmetry_type = DIAG_INVERSE;
+             }		
 
         else fprintf(stderr, "Bad parameter: '%s' (%s)\n",
                      param, value);
 }
+
 
 static evolve_result bellman_evolve(tile *t, tile *out) {
 
@@ -221,7 +243,7 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
         TILE_WORD dl_bit1, d_bit1, dr_bit1;
         TILE_WORD dl_bit0s, d_bit0s, dr_bit0s;
         TILE_WORD dl_bit1s, d_bit1s, dr_bit1s;
-		TILE_WORD all_non_active; 
+		TILE_WORD all_non_active = 0; 
 		
         TILE_WORD interaction = 0, activity = 0, unk_succ = 0, delta_from_stable_count = 0;
         TILE_WORD delta_from_previous_count = 0;
@@ -257,14 +279,23 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 				//active is either 1 or unknown. (optimization)
 				
 				all_non_active |= (((ul_bit0) & (~ul_bit1)) | ((~ul_bit0) & (ul_bit1)));
-				all_non_active |= (((ul_bit0s) & (~ul_bit1s)) | ((~ul_bit0s) & (ul_bit1s)));
-
 				all_non_active |= (((ur_bit0) & (~ur_bit1)) | ((~ur_bit0) & (ur_bit1)));
-				all_non_active |= (((ur_bit0s) & (~ur_bit1s)) | ((~ur_bit0s) & (ur_bit1s)));
-				
 				all_non_active |= (((u_bit0) & (~u_bit1)) | ((~u_bit0) & (u_bit1)));
-				all_non_active |= (((u_bit0s) & (~u_bit1s)) | ((~u_bit0s) & (u_bit1s)));
-
+				
+				if(all_non_active == 0)
+				{
+					all_non_active |= (((dl_bit0) & (~dl_bit1)) | ((~dl_bit0) & (dl_bit1)));
+					all_non_active |= (((dr_bit0) & (~dr_bit1)) | ((~dr_bit0) & (dr_bit1)));
+					all_non_active |= (((d_bit0) & (~d_bit1)) | ((~d_bit0) & (d_bit1)));
+				}
+				
+				if(all_non_active == 0)
+				{
+					all_non_active |= (((l_bit0) & (~l_bit1)) | ((~l_bit0) & (l_bit1)));
+					all_non_active |= (((r_bit0) & (~r_bit1)) | ((~r_bit0) & (r_bit1)));
+					all_non_active |= (((bit0) & (~bit1)) | ((~bit0) & (bit1)));
+				}
+				
 			if(all_non_active != 0)
 			{
                 // Any neighbourhood which is identical to the stable
@@ -1056,6 +1087,7 @@ int main(int argc, char *argv[]) {
                 bellman_choose_cells(u_evolving, u_evolving->first);
 
                 print_prune_counters();
+				getchar();
                 break;
 
         case CLASSIFY:
