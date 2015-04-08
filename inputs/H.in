@@ -1,9 +1,9 @@
-#S max-active 5
-#S repair-interval 5
+#S max-active 6
+#S repair-interval 6
 #S stable-interval 10
-#S max-live 500
+#S max-live 15
 #S last-encounter 130
-#S first-encounter 0
+#S first-encounter 1
 #P 0 0
 ...........................................................................................
 ...........................................................................................

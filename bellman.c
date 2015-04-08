@@ -277,7 +277,7 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
                 }
 				
 				//active is either 1 or unknown. (optimization)
-				
+				/*
 				all_non_active |= (((ul_bit0) & (~ul_bit1)) | ((~ul_bit0) & (ul_bit1)));
 				all_non_active |= (((ur_bit0) & (~ur_bit1)) | ((~ur_bit0) & (ur_bit1)));
 				all_non_active |= (((u_bit0) & (~u_bit1)) | ((~u_bit0) & (u_bit1)));
@@ -295,8 +295,8 @@ static evolve_result bellman_evolve(tile *t, tile *out) {
 					all_non_active |= (((r_bit0) & (~r_bit1)) | ((~r_bit0) & (r_bit1)));
 					all_non_active |= (((bit0) & (~bit1)) | ((~bit0) & (bit1)));
 				}
-				
-			if(all_non_active != 0)
+				*/
+			if(all_non_active == 0)
 			{
                 // Any neighbourhood which is identical to the stable
                 // universe should remain stable.
@@ -644,7 +644,12 @@ static void bellman_recurse(universe *u, generation *g) {
                 if(changed) {
                         CHECK(("Evolving generation %d\n", ge->next->gen));
                         generation_evolve(ge, bellman_evolve);
+
                 }
+				
+				//write_life105(stdout, ge);
+				//getchar();
+						
                 all_gens |= ge->flags;
 
                 if((first_active_gen == 0) && (ge->flags & DIFFERS_FROM_STABLE))

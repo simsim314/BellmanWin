@@ -11,7 +11,7 @@
 #define TILE_WIDTH 64
 #endif
 
-#define TILE_HEIGHT 32
+#define TILE_HEIGHT 64
 
 enum {
         OFF            = 0x0,
