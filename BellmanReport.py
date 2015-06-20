@@ -63,6 +63,8 @@ def CreateRule():
 		f.write('0,5,j1,k1,3,l1,m1,n1,o1,0\n')
 		f.write('0,5,j1,k1,l1,3,m1,n1,o1,0\n')
 		f.write('0,5,j1,k1,l1,m1,3,n1,o1,0\n')
+		f.write('0,5,j1,k1,l1,m1,n1,3,o1,0\n')
+		f.write('0,5,j1,k1,l1,m1,n1,o1,3,0\n')
 		f.write('\n')
 		f.write('# Catalyst-neighbour birth\n')
 		f.write('4,R,S,T,a,b,c,d,e,3\n')
